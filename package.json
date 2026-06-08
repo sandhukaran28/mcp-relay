@@ -1,0 +1,45 @@
+{
+  "name": "mcp-relay",
+  "version": "0.1.0",
+  "description": "An HTTP-based MCP server that brokers messages between multiple Claude Code agents.",
+  "type": "module",
+  "main": "build/server.js",
+  "bin": {
+    "mcp-relay": "build/server.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/server.js",
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "claude-code",
+    "agent",
+    "broker",
+    "relay"
+  ],
+  "author": "sandhukaran28",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "better-sqlite3": "^12.10.0",
+    "express": "^4.21.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.9.0",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
