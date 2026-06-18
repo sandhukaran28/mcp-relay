@@ -24,6 +24,7 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { loadConfig } from "./config.js";
 import { Store } from "./store.js";
 import { registerTools } from "./tools.js";
+import { registerResources } from "./resources.js";
 
 const SERVER_INFO = { name: "mcp-relay", version: "0.1.0" } as const;
 
@@ -37,6 +38,7 @@ const transports = new Map<string, StreamableHTTPServerTransport>();
 function createMcpServer(): McpServer {
   const server = new McpServer(SERVER_INFO);
   registerTools(server, store);
+  registerResources(server, store);
   return server;
 }
 
