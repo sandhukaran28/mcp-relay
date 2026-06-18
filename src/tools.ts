@@ -9,12 +9,14 @@
  * explain when to reach for each tool, since the model picks tools by reading
  * these strings.
  *
- * Implemented so far (step 5):
+ * The seven relay tools:
  *   - register_agent
  *   - send_message
  *   - get_incoming_messages
  *   - get_message_responses
- * Still to come: respond_to_message, get_active_agents, heartbeat.
+ *   - respond_to_message
+ *   - get_active_agents
+ *   - heartbeat
  */
 
 import { z } from "zod";
@@ -170,6 +172,111 @@ export function registerTools(server: McpServer, store: Store): void {
     async ({ for_agent }) => {
       const responses = store.getResponses(for_agent);
       return jsonResult({ for_agent, count: responses.length, responses });
+    }
+  );
+
+  // ---------------------------------------------------------------------------
+  // respond_to_message — answer a message you received.
+  // ---------------------------------------------------------------------------
+  server.registerTool(
+    "respond_to_message",
+    {
+      title: "Respond to Message",
+      description:
+        "Answer a message you received via get_incoming_messages. Pass the " +
+        "message_id from that message and your reply text. This marks the " +
+        "message answered and delivers your response to the original sender, " +
+        "who will see it the next time they poll get_message_responses. Returns " +
+        "an error if the message_id is unknown.",
+      inputSchema: {
+        message_id: z
+          .string()
+          .trim()
+          .min(1)
+          .describe("Id of the message you're answering."),
+        response: z
+          .string()
+          .min(1)
+          .describe("Your reply text, delivered to the sender."),
+      },
+    },
+    async ({ message_id, response }) => {
+      const updated = store.respondToMessage(message_id, response, Date.now());
+      if (!updated) {
+        return jsonResult({
+          status: "error",
+          error: "unknown_message_id",
+          message_id,
+        });
+      }
+      return jsonResult({
+        status: "responded",
+        message_id: updated.id,
+        to_agent: updated.from_agent,
+        response_timestamp: updated.response_timestamp,
+      });
+    }
+  );
+
+  // ---------------------------------------------------------------------------
+  // get_active_agents — discover who is connected.
+  // ---------------------------------------------------------------------------
+  server.registerTool(
+    "get_active_agents",
+    {
+      title: "Get Active Agents",
+      description:
+        "List all registered agents and their live status, so you can discover " +
+        "who is available before sending a message. Each entry includes the " +
+        "agent's name, capabilities, status ('active' if it sent a heartbeat " +
+        "recently, otherwise 'inactive'), and last_heartbeat time. Takes no " +
+        "arguments.",
+      inputSchema: {},
+    },
+    async () => {
+      const now = Date.now();
+      const agents = store.getAllAgents(now).map((a) => ({
+        name: a.name,
+        status: a.status,
+        capabilities: a.capabilities,
+        last_heartbeat: a.last_heartbeat,
+        last_heartbeat_age_ms: now - a.last_heartbeat,
+      }));
+      return jsonResult({
+        count: agents.length,
+        active: agents.filter((a) => a.status === "active").length,
+        agents,
+      });
+    }
+  );
+
+  // ---------------------------------------------------------------------------
+  // heartbeat — keep yourself marked active.
+  // ---------------------------------------------------------------------------
+  server.registerTool(
+    "heartbeat",
+    {
+      title: "Heartbeat",
+      description:
+        "Refresh your liveness so other agents continue to see you as 'active'. " +
+        "Call this periodically (e.g. every 30s) while you're available. If you " +
+        "stop, you're reported 'inactive' after the staleness window. Returns an " +
+        "error if you haven't registered yet — call register_agent first.",
+      inputSchema: {
+        agent_name: agentName.describe("Your registered agent name."),
+      },
+    },
+    async ({ agent_name }) => {
+      const ok = store.heartbeat(agent_name, Date.now());
+      if (!ok) {
+        return jsonResult({
+          status: "error",
+          error: "unknown_agent",
+          agent_name,
+          hint: "Call register_agent before sending heartbeats.",
+        });
+      }
+      return jsonResult({ status: "ok", agent_name });
     }
   );
 }
